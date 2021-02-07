@@ -110,7 +110,7 @@ crouton is a powerful tool, and there are a *lot* of features, but basic usage
 is as simple as possible by design.
 
 If you're just here to use crouton, you can grab the latest release from
-[https://github.com/kapilhp/crouton/raw/master/installer/crouton](https://github.com/kapilhp/crouton/raw/master/installer/crouton). Download it, pop open a shell
+[https://raw.githubusercontent.com/kapilhp/crouton/master/installer/crouton](https://raw.githubusercontent.com/kapilhp/crouton/master/installer/crouton). Download it, pop open a shell
 (Ctrl+Alt+T, type `shell` and hit enter), make the installer executable with
 `sudo install -Dt /usr/local/bin -m 755 ~/Downloads/crouton`, then launch it
 with `sudo crouton` to see the help text. See the "examples" section for some
