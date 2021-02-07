@@ -1,4 +1,11 @@
-#!/bin/sh
+#!/bin/sh -e
+# Copyright (c) 2016 The crouton Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Start the sommelier server and optionally use it start a graphical
+# application
+
 GDK_BACKEND=x11
 CLUTTER_BACKEND=wayland
 XDG_RUNTIME_DIR=/var/run/chrome
