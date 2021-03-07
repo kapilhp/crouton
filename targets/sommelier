@@ -1,0 +1,92 @@
+#!/bin/sh -e 
+# Copyright (c) 2021 The crouton Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+REQUIRES='core'
+PROVIDES='x11'
+DESCRIPTION='Wayland backend running in a Chromium OS window.'
+HOSTBIN='startsommelier'
+CHROOTBIN='sommelier'
+. "${TARGETSDIR:="$PWD"}/common"
+# Minimum version of ChromiumOS that supports wayland.
+CROS_MIN_VERS=7834
+
+# Check that the ChromiumOS version supports wayland.
+if ! awk -F= '/_RELEASE_BUILD_NUMBER=/ { exit int($2) < '"${CROS_MIN_VERS:-0}"' }' \
+        '/etc/lsb-release' 2>/dev/null; then
+    error 2 "Your version of Chromium OS is too old for 'sommelier'.
+If there are updates pending, please reboot and try again.
+Otherwise, you may not be getting automatic updates, in which case you should
+post your update_engine.log from chrome://system to http://crbug.com/new and
+restore your device using a recovery USB: https://goo.gl/AZ74hj"
+fi
+
+### Append to prepare.sh:
+XMETHOD="${XMETHOD:-sommelier}"
+
+# Download the versioned sommelier
+sommelier_version="fef7f012df0e5ec865f94255c10503ec24d9a370"
+urlbase="https://chromium.googlesource.com/chromiumos/platform2/+archive/$sommelier_version/vm_tools"
+
+# Download the corresponding virtwl.h
+kernel_version="7f7629cc680bf3c22d547fb5333e521af58c6c9e"
+urlvirtwl="https://chromium.googlesource.com/chromiumos/third_party/kernel/+/$kernel_version/include/uapi/linux/virtwl.h?format=TEXT" 
+
+# Download suitable sommelierrc
+cros_sommelier_version="4329a11adc890173f2385848e7b1bcc89fbd150d"
+urlrc="https://chromium.googlesource.com/chromiumos/containers/cros-container-guest-tools/+/$cros_sommelier_version/cros-sommelier/sommelierrc?format=TEXT"
+
+SOMMELIERBUILDTMP="`mktemp -d crouton-sommelier.XXXXXX --tmpdir=/tmp`"
+
+addtrap "rm -rf --one-file-system '$SOMMELIERBUILDTMP'"
+
+echo "Downloading ..." 1>&2
+
+wget -O "$SOMMELIERBUILDTMP/sommelier.tar.gz" \
+     "$urlbase/sommelier.tar.gz"
+
+mkdir "$SOMMELIERBUILDTMP/linux"
+wget -O- "$urlvirtwl" \
+    | base64 --decode > "$SOMMELIERBUILDTMP/linux/virtwl.h"
+
+mkdir "$SOMMELIERBUILDTMP/etc"
+wget -O- "$urlrc" \
+    | base64 --decode > "$SOMMELIERBUILDTMP/etc/sommelierrc"
+
+install xwayland weston xorg x11-utils x11-xserver-utils
+
+install --minimal --asdeps pkg-config libwayland-dev libgbm-dev gcc \
+    libx11-xcb-dev libsystemd-dev libxcb-composite0-dev \
+    libxkbcommon-dev libxrender-dev libxtst-dev libpixman-1-dev \
+    ninja-build meson cmake libdrm-dev build-essential
+
+# Compilation subshell
+(
+    cd "$SOMMELIERBUILDTMP"
+    # -m prevents "time stamp is in the future" spam
+    tar -xzmf sommelier.tar.gz
+
+    echo "Compiling sommelier..." 1>&2
+
+    meson build
+    ninja -C build
+
+    echo "Installing sommelier..." 1>&2
+
+    LIBDIR="/usr/local/lib"
+    mkdir -p "$LIBDIR/"
+    /usr/bin/install -s build/sommelier "$LIBDIR/sommelier.real"
+
+    ETCDIR="/etc/crouton"
+    mkdir -p "$ETCDIR"
+    /usr/bin/install -b --suffix='.old' etc/sommelierrc "$ETCDIR/"
+
+) # End compilation subshell
+
+TIPS="$TIPS"'
+You can launch individual apps in ChromeOS windows by using the
+"sommelier" command in the chroot shell. Use startsommelier to launch
+directly from the host shell.  Use the startsommelier parameter -b to
+run in the background.  Example: sudo startsommelier -b xterm
+'
+
